@@ -1,11 +1,12 @@
-COUNT_SRC=wordcount.py
-COUNT_EXE=python $(COUNT_SRC)
-ZIPF_SRC=zipf_test.py
-ZIPF_EXE=python $(ZIPF_SRC)
+LANGUAGE=python
+COUNT_SRC=countwords.py
+COUNT_EXE=$(LANGUAGE) $(COUNT_SRC)
+ZIPF_SRC=testzipf.py
+ZIPF_EXE=$(LANGUAGE) $(ZIPF_SRC)
 
 # Generate summary table.
-results.txt : *.dat $(ZIPF_SRC)
-	$(ZIPF_EXE) $< > $@
+results.txt : $(ZIPF_SRC) isles.dat abyss.dat last.dat
+	$(ZIPF_EXE) *.dat > $@
 
 # Count words.
 .PHONY : dats

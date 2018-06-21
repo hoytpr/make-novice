@@ -1,7 +1,7 @@
 ---
 title: "Functions"
 teaching: 15
-exercises: 15
+exercises: 5
 questions:
 - "How *else* can I eliminate redundancy in my Makefiles?"
 objectives:
@@ -18,24 +18,24 @@ At this point, we have the following Makefile:
 include config.mk
 
 # Generate summary table.
-results.txt : *.dat $(ZIPF_SRC)
-        $(ZIPF_EXE) $< > $@
+results.txt : $(ZIPF_SRC) isles.dat abyss.dat last.dat
+	$(ZIPF_EXE) *.dat > $@
 
 # Count words.
 .PHONY : dats
 dats : isles.dat abyss.dat last.dat
 
 %.dat : books/%.txt $(COUNT_SRC)
-        $(COUNT_EXE) $< $*.dat
+	$(COUNT_EXE) $< $*.dat
 
 .PHONY : clean
 clean :
-        rm -f *.dat
-        rm -f results.txt
+	rm -f *.dat
+	rm -f results.txt
 ~~~
 {: .make}
 
-Make has many [functions]({{ page.root }}/reference/#function) which can be used to
+Make has many [functions]({{ page.root }}/reference#function) which can be used to
 write more complex rules. One example is `wildcard`. `wildcard` gets a
 list of files matching some pattern, which we can then save in a
 variable. So, for example, we can get a list of all our text files
@@ -47,7 +47,7 @@ TXT_FILES=$(wildcard books/*.txt)
 ~~~
 {: .make}
 
-We can add `.PHONY` target and rule to show the variable's value:
+We can add a `.PHONY` target and rule to show the variable's value:
 
 ~~~
 .PHONY : variables
@@ -103,8 +103,8 @@ We can extend `variables` to show the value of `DAT_FILES` too:
 ~~~
 .PHONY : variables
 variables:
-        @echo TXT_FILES: $(TXT_FILES)
-        @echo DAT_FILES: $(DAT_FILES)
+	@echo TXT_FILES: $(TXT_FILES)
+	@echo DAT_FILES: $(DAT_FILES)
 ~~~
 {: .make}
 
@@ -133,9 +133,17 @@ dats : $(DAT_FILES)
 
 .PHONY : clean
 clean :
-        rm -f $(DAT_FILES)
-        rm -f results.txt
+	rm -f $(DAT_FILES)
+	rm -f results.txt
 ~~~
+{: .make}
+
+Let's also tidy up the `%.dat` rule by using the automatic variable `$@` instead of `$*.dat`:
+
+```
+%.dat : books/%.txt $(COUNT_SRC)
+	$(COUNT_EXE) $< $@
+```
 {: .make}
 
 Let's check:
@@ -149,27 +157,20 @@ $ make dats
 We get:
 
 ~~~
-python wordcount.py books/abyss.txt abyss.dat
-python wordcount.py books/isles.txt isles.dat
-python wordcount.py books/last.txt last.dat
-python wordcount.py books/sierra.txt sierra.dat
+python countwords.py books/abyss.txt abyss.dat
+python countwords.py books/isles.txt isles.dat
+python countwords.py books/last.txt last.dat
+python countwords.py books/sierra.txt sierra.dat
 ~~~
 {: .output}
 
 We can also rewrite `results.txt`: 
 
 ~~~
-results.txt : $(DAT_FILES) $(ZIPF_SRC)
-        $(ZIPF_EXE) $(DAT_FILES) > $@
+results.txt : $(ZIPF_SRC) $(DAT_FILES)
+	$(ZIPF_EXE) $(DAT_FILES) > $@
 ~~~
 {: .make}
-
-**Note that `$(DAT_FILES)` will get expanded by Make, and recall that `$<`
-refers to the first dependency.**
-Previously our first dependency was `*.dat` which was expanded by bash.
-Now that we are using the variable `DAT_FILES` as a dependency,
-we need to update our action command accordingly, because `$<` would refer
-only to the first of the `DAT_FILES`.
 
 If we re-run Make:
 
@@ -182,18 +183,13 @@ $ make results.txt
 We get:
 
 ~~~
-python wordcount.py books/abyss.txt abyss.dat
-python wordcount.py books/isles.txt isles.dat
-python wordcount.py books/last.txt last.dat
-python wordcount.py books/sierra.txt sierra.dat
-python zipf_test.py  last.dat  isles.dat  abyss.dat  sierra.dat > results.txt
+python countwords.py books/abyss.txt abyss.dat
+python countwords.py books/isles.txt isles.dat
+python countwords.py books/last.txt last.dat
+python countwords.py books/sierra.txt sierra.dat
+python testzipf.py  last.dat  isles.dat  abyss.dat  sierra.dat > results.txt
 ~~~
 {: .output}
-
-We see that the problem we had when using the bash wild-card, `*.dat`,
-which required us to run `make dats` before `make results.txt` has
-now disappeared, since our functions allow us to create `.dat` file
-names from those `.txt` file names in `books/`.
 
 Let's check the `results.txt` file:
 
@@ -223,7 +219,7 @@ TXT_FILES=$(wildcard books/*.txt)
 DAT_FILES=$(patsubst books/%.txt, %.dat, $(TXT_FILES))
 
 # Generate summary table.
-results.txt : $(DAT_FILES) $(ZIPF_SRC)
+results.txt : $(ZIPF_SRC) $(DAT_FILES) 
 	$(ZIPF_EXE) $(DAT_FILES) > $@
 
 # Count words.
@@ -231,7 +227,7 @@ results.txt : $(DAT_FILES) $(ZIPF_SRC)
 dats : $(DAT_FILES)
 
 %.dat : books/%.txt $(COUNT_SRC)
-	$(COUNT_EXE) $< $*.dat
+	$(COUNT_EXE) $< $@
 
 .PHONY : clean
 clean :
@@ -249,12 +245,13 @@ Remember, the `config.mk` file contains:
 
 ~~~
 # Count words script.
-COUNT_SRC=wordcount.py
-COUNT_EXE=python $(COUNT_SRC)
+LANGUAGE=python
+COUNT_SRC=countwords.py
+COUNT_EXE=$(LANGUAGE) $(COUNT_SRC)
 
 # Test Zipf's rule
-ZIPF_SRC=zipf_test.py
-ZIPF_EXE=python $(ZIPF_SRC)
+ZIPF_SRC=testzipf.py
+ZIPF_EXE=$(LANGUAGE) $(ZIPF_SRC)
 ~~~
 {: .make}
 
